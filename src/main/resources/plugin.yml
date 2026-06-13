@@ -1,0 +1,58 @@
+name: RankSystem
+version: 1.0.0
+main: de.rankSystem.RankSystem
+api-version: '1.21'
+author: YourName
+description: Neon Rank System mit LuckPerms, Tab-Liste, Chat-Prefix
+
+depend:
+  - LuckPerms
+
+commands:
+  rank:
+    description: Rang-Verwaltung
+    usage: /rank <set|info|list> [Spieler] [Rang]
+    permission: ranksystem.admin
+
+permissions:
+  # Admin-Permissions
+  ranksystem.admin:
+    description: Zugriff auf /rank Befehle
+    default: op
+
+  # Rang-Permissions (von LuckPerms automatisch vergeben)
+  ranksystem.rank.owner:
+    description: Owner-Rang
+    default: false
+  ranksystem.rank.admin:
+    description: Admin-Rang
+    default: false
+  ranksystem.rank.moderator:
+    description: Moderator-Rang
+    default: false
+  ranksystem.rank.supporter:
+    description: Supporter-Rang
+    default: false
+  ranksystem.rank.streamer:
+    description: Streamer-Rang
+    default: false
+  ranksystem.rank.vip:
+    description: VIP-Rang
+    default: false
+  ranksystem.rank.mitglied:
+    description: Mitglied-Rang
+    default: true
+
+  # Feature-Permissions (für andere Plugins nutzbar)
+  ranksystem.mod:
+    description: Moderator-Funktionen
+    default: false
+  ranksystem.support:
+    description: Supporter-Funktionen
+    default: false
+  ranksystem.vip:
+    description: VIP-Funktionen
+    default: false
+  ranksystem.streamer:
+    description: Streamer-Funktionen
+    default: false

@@ -1,0 +1,47 @@
+plugins {
+    id 'java'
+    id 'com.gradleup.shadow' version '8.3.5'
+}
+
+group = 'de.rankSystem'
+version = '1.0.0'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+repositories {
+    mavenCentral()
+
+    // Paper API
+    maven { url = 'https://repo.papermc.io/repository/maven-public/' }
+
+    // LuckPerms
+    maven { url = 'https://oss.sonatype.org/content/repositories/snapshots' }
+    maven { url = 'https://nexus.lucko.me/repository/maven-releases/' }
+}
+
+dependencies {
+    // Paper API (26.1 = neuste Version)
+    compileOnly 'io.papermc.paper:paper-api:1.21.4-R0.1-SNAPSHOT'
+
+    // LuckPerms API (nicht shadowen, ist auf dem Server vorhanden)
+    compileOnly 'net.luckperms:api:5.4'
+}
+
+tasks {
+    shadowJar {
+        archiveClassifier.set('')
+        archiveFileName.set("RankSystem-${version}.jar")
+    }
+
+    build {
+        dependsOn shadowJar
+    }
+
+    compileJava {
+        options.encoding = 'UTF-8'
+    }
+}
