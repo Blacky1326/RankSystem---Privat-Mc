@@ -3,9 +3,6 @@ package de.rankSystem;
 import de.rankSystem.commands.RankCommand;
 import de.rankSystem.listeners.ChatListener;
 import de.rankSystem.listeners.PlayerJoinListener;
-import de.rankSystem.managers.ActionBarManager;
-import de.rankSystem.managers.ConfigManager;
-import de.rankSystem.managers.MotdManager;
 import de.rankSystem.managers.RankManager;
 import de.rankSystem.managers.TabManager;
 import net.luckperms.api.LuckPerms;
@@ -19,8 +16,6 @@ public class RankSystem extends JavaPlugin {
     private LuckPerms luckPerms;
     private RankManager rankManager;
     private TabManager tabManager;
-    private ConfigManager configManager;
-    private ActionBarManager actionBarManager;
 
     @Override
     public void onEnable() {
@@ -34,18 +29,10 @@ public class RankSystem extends JavaPlugin {
 
         saveDefaultConfig();
 
-        configManager = new ConfigManager(this);
-        rankManager   = new RankManager(this);
-        tabManager    = new TabManager(this);
+        rankManager = new RankManager(this);
+        tabManager = new TabManager(this);
 
         rankManager.setupLuckPermsGroups();
-
-        // ActionBar & MOTD
-        actionBarManager = new ActionBarManager(this);
-        actionBarManager.start();
-
-        MotdManager motdManager = new MotdManager(this);
-        Bukkit.getPluginManager().registerEvents(motdManager, this);
 
         Bukkit.getPluginManager().registerEvents(new PlayerJoinListener(this), this);
         Bukkit.getPluginManager().registerEvents(new ChatListener(this), this);
@@ -77,9 +64,7 @@ public class RankSystem extends JavaPlugin {
     }
 
     public static RankSystem getInstance() { return instance; }
-    public LuckPerms getLuckPerms()        { return luckPerms; }
-    public RankManager getRankManager()    { return rankManager; }
-    public TabManager getTabManager()      { return tabManager; }
-    public ConfigManager getConfigManager(){ return configManager; }
-    public ActionBarManager getActionBarManager(){ return actionBarManager; }
+    public LuckPerms getLuckPerms() { return luckPerms; }
+    public RankManager getRankManager() { return rankManager; }
+    public TabManager getTabManager() { return tabManager; }
 }
