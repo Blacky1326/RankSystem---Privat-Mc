@@ -1,91 +1,54 @@
-package de.rankSystem;
+@Override
+public void onEnable() {
 
-import de.rankSystem.commands.RankCommand;
-import de.rankSystem.listeners.ChatListener;
-import de.rankSystem.listeners.PlayerJoinListener;
-import de.rankSystem.managers.ActionBarManager;
-import de.rankSystem.managers.ConfigManager;
-import de.rankSystem.managers.MotdManager;
-import de.rankSystem.managers.RankManager;
-import de.rankSystem.managers.TabManager;
-import net.luckperms.api.LuckPerms;
-import net.luckperms.api.event.user.UserDataRecalculateEvent;
-import org.bukkit.Bukkit;
-import org.bukkit.plugin.RegisteredServiceProvider;
-import org.bukkit.plugin.java.JavaPlugin;
+    instance = this;
 
-public class RankSystem extends JavaPlugin {
+    if (!setupLuckPerms()) {
+        getLogger().severe("LuckPerms nicht gefunden!");
+        Bukkit.getPluginManager().disablePlugin(this);
+        return;
+    }
 
-    private static RankSystem instance;
-    private LuckPerms luckPerms;
-    private RankManager rankManager;
-    private TabManager tabManager;
-    private ConfigManager configManager;
-    private ActionBarManager actionBarManager;
+    saveDefaultConfig();
 
-    @Override
-    public void onEnable() {
-        instance = this;
+    configManager = new ConfigManager(this);
+    rankManager   = new RankManager(this);
+    tabManager    = new TabManager(this);
 
-        if (!setupLuckPerms()) {
-            getLogger().severe("LuckPerms nicht gefunden! Plugin wird deaktiviert.");
-            Bukkit.getPluginManager().disablePlugin(this);
-            return;
+    rankManager.setupLuckPermsGroups();
+
+    Bukkit.getPluginManager().registerEvents(new MotdManager(this), this);
+    Bukkit.getPluginManager().registerEvents(new PlayerJoinListener(this), this);
+    Bukkit.getPluginManager().registerEvents(new ChatListener(this), this);
+
+    if (getCommand("rank") != null) {
+        RankCommand cmd = new RankCommand(this);
+        getCommand("rank").setExecutor(cmd);
+        getCommand("rank").setTabCompleter(cmd);
+    }
+
+    // initial update
+    Bukkit.getOnlinePlayers().forEach(p -> tabManager.updatePlayer(p));
+
+    // LuckPerms event (OPTIMIZED)
+    luckPerms.getEventBus().subscribe(this, UserDataRecalculateEvent.class, event -> {
+
+        Player player = Bukkit.getPlayer(event.getUser().getUniqueId());
+        if (player != null) {
+            tabManager.updatePlayer(player);
         }
+    });
 
-        saveDefaultConfig();
+    // backup fallback (LOW FREQUENCY)
+    Bukkit.getScheduler().runTaskTimer(this, () ->
+            Bukkit.getOnlinePlayers().forEach(p -> tabManager.updatePlayer(p)),
+    1200L, 1200L);
 
-        configManager = new ConfigManager(this);
-        rankManager   = new RankManager(this);
-        tabManager    = new TabManager(this);
-
-        rankManager.setupLuckPermsGroups();
-
+    // ActionBar delayed start
+    Bukkit.getScheduler().runTaskLater(this, () -> {
         actionBarManager = new ActionBarManager(this);
         actionBarManager.start();
+    }, 20L);
 
-        MotdManager motdManager = new MotdManager(this);
-        Bukkit.getPluginManager().registerEvents(motdManager, this);
-
-        Bukkit.getPluginManager().registerEvents(new PlayerJoinListener(this), this);
-        Bukkit.getPluginManager().registerEvents(new ChatListener(this), this);
-
-        getCommand("rank").setExecutor(new RankCommand(this));
-        getCommand("rank").setTabCompleter(new RankCommand(this));
-
-        // Initial Tab Update
-        Bukkit.getOnlinePlayers().forEach(p -> tabManager.updatePlayer(p));
-
-        // LuckPerms Event -> sofortiges Update bei Rank Änderung
-        luckPerms.getEventBus().subscribe(this, UserDataRecalculateEvent.class, event -> {
-            Bukkit.getOnlinePlayers().forEach(p -> tabManager.updatePlayer(p));
-        });
-
-        // Backup: alle 2 Sekunden (falls irgendwas nicht triggert)
-        Bukkit.getScheduler().runTaskTimer(this, () ->
-                Bukkit.getOnlinePlayers().forEach(p -> tabManager.updatePlayer(p)),
-        40L, 40L);
-
-        getLogger().info("RankSystem erfolgreich gestartet!");
-    }
-
-    @Override
-    public void onDisable() {
-        getLogger().info("RankSystem wurde deaktiviert.");
-    }
-
-    private boolean setupLuckPerms() {
-        RegisteredServiceProvider<LuckPerms> provider =
-                Bukkit.getServicesManager().getRegistration(LuckPerms.class);
-        if (provider == null) return false;
-        luckPerms = provider.getProvider();
-        return true;
-    }
-
-    public static RankSystem getInstance() { return instance; }
-    public LuckPerms getLuckPerms() { return luckPerms; }
-    public RankManager getRankManager() { return rankManager; }
-    public TabManager getTabManager() { return tabManager; }
-    public ConfigManager getConfigManager() { return configManager; }
-    public ActionBarManager getActionBarManager() { return actionBarManager; }
+    getLogger().info("RankSystem gestartet!");
 }
