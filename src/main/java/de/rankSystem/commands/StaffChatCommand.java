@@ -66,8 +66,7 @@ public class StaffChatCommand implements CommandExecutor, TabCompleter {
             rankPrefix = plugin.getRankManager().getPlayerRank(p).getChatPrefix()
                     .insertion() != null ? "" : "";
             // Use MiniMessage serialized rank prefix
-            rankPrefix = net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer
-                    .legacySection().serialize(plugin.getRankManager().getPlayerRank(p).getChatPrefix());
+            rankPrefix = plugin.getRankManager().getPlayerRank(p).getChatPrefixMini();
         }
 
         sendStaffMessage(senderName, rankPrefix, message);

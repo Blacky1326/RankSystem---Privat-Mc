@@ -30,20 +30,41 @@ public class TabManager {
     }
 
     private Component buildTabName(Player player, Rank rank) {
-        return rank.getTabPrefix().append(getNameColor(player, rank));
-    }
-
-    private Component getNameColor(Player player, Rank rank) {
+        // [RANG] Name   ping ms
+        String ping = getPingFormatted(player);
         String nameTag = switch (rank) {
-            case OWNER    -> "<gradient:#FF6B6B:#FFD93D><bold>" + player.getName() + "</bold></gradient>";
-            case ADMIN    -> "<gradient:#FF8C00:#FFD700><bold>" + player.getName() + "</bold></gradient>";
+            case OWNER     -> "<gradient:#FF6B6B:#FFD93D><bold>" + player.getName() + "</bold></gradient>";
+            case ADMIN     -> "<gradient:#FF8C00:#FFD700><bold>" + player.getName() + "</bold></gradient>";
             case MODERATOR -> "<gradient:#00BFFF:#7B68EE>" + player.getName() + "</gradient>";
             case SUPPORTER -> "<gradient:#00FF7F:#00CED1>" + player.getName() + "</gradient>";
             case STREAMER  -> "<gradient:#DA70D6:#FF1493>" + player.getName() + "</gradient>";
             case VIP       -> "<gradient:#FFD700:#FFA500>" + player.getName() + "</gradient>";
             case MITGLIED  -> "<gray>" + player.getName() + "</gray>";
         };
-        return mm.deserialize(nameTag);
+
+        return rank.getTabPrefix()
+                .append(mm.deserialize(nameTag))
+                .append(mm.deserialize(" <dark_gray>| " + ping + "</dark_gray>"));
+    }
+
+    /**
+     * Returns a colored ping string, e.g. "<green>12ms</green>"
+     */
+    private String getPingFormatted(Player player) {
+        int ping = player.getPing();
+        String color;
+        if (ping < 50) {
+            color = "#00FF7F";       // grün
+        } else if (ping < 100) {
+            color = "#7FFF00";       // gelbgrün
+        } else if (ping < 150) {
+            color = "#FFD700";       // gelb
+        } else if (ping < 200) {
+            color = "#FFA500";       // orange
+        } else {
+            color = "#FF4444";       // rot
+        }
+        return "<color:" + color + ">" + ping + "ms</color>";
     }
 
     private void setupScoreboardTeam(Player player, Rank rank) {

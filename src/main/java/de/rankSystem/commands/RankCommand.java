@@ -109,7 +109,7 @@ public class RankCommand implements CommandExecutor, TabCompleter {
                 sender.sendMessage(mm.deserialize(
                         "<dark_gray>┌──────────────────────────┐</dark_gray>\n" +
                         "<dark_gray>│</dark_gray> <gray>Spieler: <white>" + target.getName() + "</white></gray>\n" +
-                        "<dark_gray>│</dark_gray> <gray>Rang: </gray>" + serializeComponent(rank.getChatPrefix()) + "\n" +
+                        "<dark_gray>│</dark_gray> <gray>Rang: </gray>" + rank.getChatPrefixMini() + "\n" +
                         "<dark_gray>└──────────────────────────┘</dark_gray>"
                 ));
             }
@@ -125,14 +125,14 @@ public class RankCommand implements CommandExecutor, TabCompleter {
             }
 
             case "list" -> {
-                StringBuilder list = new StringBuilder();
-                list.append("<dark_gray>┌──── Alle Ränge ────┐</dark_gray>\n");
+                sender.sendMessage(mm.deserialize("<dark_gray>┌──── Alle Ränge ────┐</dark_gray>"));
                 for (Rank rank : Rank.values()) {
-                    list.append("<dark_gray>│</dark_gray> ").append(serializeComponent(rank.getChatPrefix()))
-                            .append(" <gray>(").append(rank.getLuckPermsGroup()).append(")</gray>\n");
+                    sender.sendMessage(mm.deserialize(
+                        "<dark_gray>│</dark_gray> " + rank.getChatPrefixMini()
+                        + " <gray>(" + rank.getLuckPermsGroup() + ")</gray>"
+                    ));
                 }
-                list.append("<dark_gray>└───────────────────┘</dark_gray>");
-                sender.sendMessage(mm.deserialize(list.toString()));
+                sender.sendMessage(mm.deserialize("<dark_gray>└───────────────────┘</dark_gray>"));
             }
 
             default -> sendHelp(sender);
@@ -150,10 +150,6 @@ public class RankCommand implements CommandExecutor, TabCompleter {
         ));
     }
 
-    private String serializeComponent(net.kyori.adventure.text.Component component) {
-        return net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer
-                .legacySection().serialize(component);
-    }
 
     private String getRankList() {
         StringBuilder sb = new StringBuilder();

@@ -102,6 +102,7 @@ public enum Rank {
     }
 
     public String getDisplayName() { return displayName; }
+    public String getChatPrefixMini() { return chatPrefixMini; }
     public String getLuckPermsGroup() { return luckPermsGroup; }
     public int getWeight() { return weight; }
     public String getPermission() { return permission; }
