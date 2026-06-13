@@ -29,30 +29,23 @@ public class RankManager {
     public void setupLuckPermsGroups() {
         for (Rank rank : Rank.values()) {
             String groupName = rank.getLuckPermsGroup();
-            if (groupName.equals("default")) continue; // default existiert immer
+            if (groupName.equals("default")) continue;
 
             luckPerms.getGroupManager().createAndLoadGroup(groupName).thenAccept(group -> {
-                // Basis-Permission für die Gruppe
                 group.data().add(PermissionNode.builder(rank.getPermission()).build());
-
-                // Gruppen-Hierarchie: Niedrigere Ränge erben von höheren
                 setupGroupInheritance(group, rank);
-
                 luckPerms.getGroupManager().saveGroup(group);
                 plugin.getLogger().info("Gruppe erstellt/aktualisiert: " + groupName);
             });
         }
 
-        // Setze Gewichte für korrekte Sortierung
         setupGroupWeights();
     }
 
     private void setupGroupInheritance(Group group, Rank rank) {
-        // Jede Gruppe erbt von der nächst-niedrigeren
         switch (rank) {
             case OWNER -> {
                 addInheritance(group, "admin");
-                // Owner hat alle Permissions
                 group.data().add(PermissionNode.builder("*").build());
             }
             case ADMIN -> {
@@ -91,7 +84,6 @@ public class RankManager {
             String groupName = rank.getLuckPermsGroup();
             luckPerms.getGroupManager().loadGroup(groupName).thenAccept(optGroup -> {
                 optGroup.ifPresent(group -> {
-                    // Setze Prefix via Meta
                     group.data().add(
                             net.luckperms.api.node.types.PrefixNode.builder(
                                     "[" + rank.getDisplayName() + "] ", rank.getWeight()
@@ -115,11 +107,11 @@ public class RankManager {
     }
 
     /**
-     * Setzt den Rang eines Spielers (async)
+     * Setzt den Rang eines Spielers (async) – FIX: saveUser erst nach dem inner-async-Block
      */
     public CompletableFuture<Void> setPlayerRank(UUID uuid, Rank newRank, Rank oldRank) {
-        return luckPerms.getUserManager().loadUser(uuid).thenAccept(user -> {
-            if (user == null) return;
+        return luckPerms.getUserManager().loadUser(uuid).thenCompose(user -> {
+            if (user == null) return CompletableFuture.completedFuture(null);
 
             // Alle alten Rang-Gruppen entfernen
             for (Rank rank : Rank.values()) {
@@ -130,18 +122,22 @@ public class RankManager {
                 );
             }
 
-            // Neue Gruppe setzen
-            if (newRank != Rank.MITGLIED) {
-                luckPerms.getGroupManager().loadGroup(newRank.getLuckPermsGroup())
-                        .thenAccept(optGroup -> optGroup.ifPresent(group -> {
-                            user.data().add(InheritanceNode.builder(group).build());
-                            user.setPrimaryGroup(newRank.getLuckPermsGroup());
-                        })).join();
-            } else {
+            // Mitglied (default) → direkt speichern
+            if (newRank == Rank.MITGLIED) {
                 user.setPrimaryGroup("default");
+                return luckPerms.getUserManager().saveUser(user);
             }
 
-            luckPerms.getUserManager().saveUser(user);
+            // Neue Gruppe laden und erst DANACH speichern (kein Race-Condition mehr)
+            return luckPerms.getGroupManager().loadGroup(newRank.getLuckPermsGroup())
+                    .thenCompose(optGroup -> {
+                        optGroup.ifPresent(group -> {
+                            user.data().add(InheritanceNode.builder(group).build());
+                            user.setPrimaryGroup(newRank.getLuckPermsGroup());
+                        });
+                        // saveUser wird nun garantiert NACH dem Setzen der Gruppe aufgerufen
+                        return luckPerms.getUserManager().saveUser(user);
+                    });
         });
     }
 }

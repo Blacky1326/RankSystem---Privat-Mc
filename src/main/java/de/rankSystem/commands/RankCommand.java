@@ -58,7 +58,6 @@ public class RankCommand implements CommandExecutor, TabCompleter {
                     return true;
                 }
 
-                // Owner-Rang nur von Konsolenbefehlen oder anderen Ownern vergeben
                 if (newRank == Rank.OWNER && sender instanceof Player senderPlayer) {
                     if (!plugin.getRankManager().getPlayerRank(senderPlayer).equals(Rank.OWNER)) {
                         sender.sendMessage(mm.deserialize("<red>✗ Nur Owner können den Owner-Rang vergeben!</red>"));
@@ -71,22 +70,32 @@ public class RankCommand implements CommandExecutor, TabCompleter {
 
                 plugin.getRankManager().setPlayerRank(targetUUID, newRank, oldRank)
                         .thenRun(() -> {
-                            // Zurück auf Main-Thread für Bukkit-API
-                            Bukkit.getScheduler().runTask(plugin, () -> {
-                                plugin.getTabManager().updatePlayer(target);
+                            // 5 Ticks warten bis LuckPerms-Cache aktuell ist
+                            Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                                plugin.getLuckPerms().getUserManager().loadUser(targetUUID).thenAccept(u -> {
+                                    Bukkit.getScheduler().runTask(plugin, () -> {
+                                        if (!target.isOnline()) return;
 
-                                sender.sendMessage(mm.deserialize(
-                                        "<green>✔ Rang von <white>" + target.getName() +
-                                        "</white> auf " + newRank.getChatPrefix().toString() +
-                                        " <green>gesetzt!</green>"
-                                ));
+                                        // Tab aktualisieren
+                                        plugin.getTabManager().updatePlayer(target);
 
-                                target.sendMessage(mm.deserialize(
-                                        "<gray>Dein Rang wurde auf </gray>" +
-                                        "<gradient:#00FF7F:#00CED1><bold>" + newRank.getDisplayName() + "</bold></gradient>" +
-                                        "<gray> gesetzt!</gray>"
-                                ));
-                            });
+                                        // ActionBar sofort mit neuem Rang aktualisieren
+                                        plugin.getActionBarManager().sendImmediately(target);
+
+                                        sender.sendMessage(mm.deserialize(
+                                                "<green>✔ Rang von <white>" + target.getName() +
+                                                "</white> auf " + newRank.getChatPrefixMini() +
+                                                " <green>gesetzt!</green>"
+                                        ));
+
+                                        target.sendMessage(mm.deserialize(
+                                                "<gray>Dein Rang wurde auf </gray>" +
+                                                "<gradient:#00FF7F:#00CED1><bold>" + newRank.getDisplayName() + "</bold></gradient>" +
+                                                "<gray> gesetzt!</gray>"
+                                        ));
+                                    });
+                                });
+                            }, 5L);
                         });
             }
 
@@ -115,10 +124,6 @@ public class RankCommand implements CommandExecutor, TabCompleter {
             }
 
             case "reload" -> {
-                if (!sender.hasPermission("ranksystem.admin")) {
-                    sender.sendMessage(mm.deserialize("<red>✗ Kein Zugriff!</red>"));
-                    return true;
-                }
                 plugin.getConfigManager().reload();
                 plugin.getActionBarManager().restart();
                 sender.sendMessage(mm.deserialize("<green>✔ Config erfolgreich neu geladen!</green>"));
@@ -150,7 +155,6 @@ public class RankCommand implements CommandExecutor, TabCompleter {
         ));
     }
 
-
     private String getRankList() {
         StringBuilder sb = new StringBuilder();
         for (Rank rank : Rank.values()) {
@@ -164,9 +168,7 @@ public class RankCommand implements CommandExecutor, TabCompleter {
     public List<String> onTabComplete(CommandSender sender, Command cmd, String alias, String[] args) {
         if (!sender.hasPermission("ranksystem.admin")) return new ArrayList<>();
 
-        if (args.length == 1) {
-            return Arrays.asList("set", "info", "list", "reload");
-        }
+        if (args.length == 1) return Arrays.asList("set", "info", "list", "reload");
         if (args.length == 2 && (args[0].equalsIgnoreCase("set") || args[0].equalsIgnoreCase("info"))) {
             List<String> players = new ArrayList<>();
             Bukkit.getOnlinePlayers().forEach(p -> players.add(p.getName()));
