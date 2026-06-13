@@ -1,0 +1,51 @@
+name: Build RankSystem Plugin
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch: # Manuell starten per Knopfdruck auf GitHub
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Code herunterladen
+        uses: actions/checkout@v4
+
+      - name: Java 21 installieren
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Gradle Setup
+        uses: gradle/actions/setup-gradle@v3
+
+      - name: Ausführrechte für Gradle Wrapper setzen
+        run: chmod +x gradlew
+
+      - name: Plugin bauen
+        run: ./gradlew shadowJar
+
+      - name: JAR herunterladen (Artifact)
+        uses: actions/upload-artifact@v4
+        with:
+          name: RankSystem-Plugin
+          path: build/libs/RankSystem-1.0.0.jar
+          retention-days: 30
+
+      # Optional: Automatisch ein GitHub Release erstellen bei Push auf main
+      - name: Release erstellen (nur bei Push auf main)
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: build-${{ github.run_number }}
+          name: "RankSystem Build #${{ github.run_number }}"
+          body: |
+            Automatischer Build von Commit ${{ github.sha }}
+          files: build/libs/RankSystem-1.0.0.jar
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
