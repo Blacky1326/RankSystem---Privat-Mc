@@ -1,118 +1,103 @@
 package de.rankSystem.managers;
 
 import de.rankSystem.RankSystem;
+import de.rankSystem.utils.Rank;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.configuration.file.FileConfiguration;
 
-import java.util.List;
+import java.util.*;
 
 public class ConfigManager {
 
     private final RankSystem plugin;
     private final MiniMessage mm = MiniMessage.miniMessage();
+
     private FileConfiguration config;
+
+    // 🔥 CACHE
+    private List<String> actionbarCache = new ArrayList<>();
+    private List<String> tabHeaderCache = new ArrayList<>();
+    private List<String> tabFooterCache = new ArrayList<>();
 
     public ConfigManager(RankSystem plugin) {
         this.plugin = plugin;
         reload();
     }
 
+    // ── RELOAD ─────────────────────────────
+
     public void reload() {
         plugin.reloadConfig();
         config = plugin.getConfig();
+        loadCache();
     }
 
-    // ── TAB ──────────────────────────────────────────────────────────────────
-
-    public String getTabHeader(int playerCount) {
-        List<String> lines = config.getStringList("tab.header");
-        StringBuilder sb = new StringBuilder();
-        for (String line : lines) {
-            if (sb.length() > 0) sb.append("\n");
-            sb.append(line.replace("%players%", String.valueOf(playerCount)));
-        }
-        return sb.toString();
+    private void loadCache() {
+        actionbarCache = config.getStringList("actionbar.lines");
+        tabHeaderCache = config.getStringList("tab.header");
+        tabFooterCache = config.getStringList("tab.footer");
     }
 
-    public String getTabFooter() {
-        List<String> lines = config.getStringList("tab.footer");
-        StringBuilder sb = new StringBuilder();
-        for (String line : lines) {
-            if (sb.length() > 0) sb.append("\n");
-            sb.append(line);
-        }
-        return sb.toString();
+    // ── TAB ────────────────────────────────
+
+    public Component getTabHeader(int playerCount) {
+        String text = String.join("\n", tabHeaderCache)
+                .replace("%players%", String.valueOf(playerCount));
+
+        return mm.deserialize(text);
     }
 
-    // ── LOGIN SCREEN ─────────────────────────────────────────────────────────
-
-    public Component getLoginTitle(String playerName) {
-        String title = config.getString("login.title", "<white>Willkommen!</white>");
-        return mm.deserialize(title.replace("%name%", playerName));
+    public Component getTabFooter() {
+        String text = String.join("\n", tabFooterCache);
+        return mm.deserialize(text);
     }
 
-    public Component getLoginSubtitle(String playerName, String rankDisplay) {
-        String sub = config.getString("login.subtitle", "<gray>Schön dass du da bist!</gray>");
-        return mm.deserialize(sub
-                .replace("%name%", playerName)
-                .replace("%rank%", rankDisplay));
-    }
-
-    public List<String> getLoginChat() {
-        return config.getStringList("login.chat");
-    }
-
-    public int getLoginDuration() {
-        return config.getInt("login.duration", 5);
-    }
-
-    // ── MESSAGES ─────────────────────────────────────────────────────────────
-
-    public Component getMessage(String key, String... replacements) {
-        String msg = config.getString("messages." + key, "<red>Message not found: " + key + "</red>");
-        for (int i = 0; i < replacements.length - 1; i += 2) {
-            msg = msg.replace(replacements[i], replacements[i + 1]);
-        }
-        return mm.deserialize(msg);
-    }
-
-    // ── RANKS ────────────────────────────────────────────────────────────────
-
-    public String getRankPrefix(String rankKey) {
-        return config.getString("ranks." + rankKey + ".prefix", "<gray>[?]</gray>");
-    }
-
-    public String getRankDisplay(String rankKey) {
-        return config.getString("ranks." + rankKey + ".display", rankKey);
-    }
-
-    public int getRankWeight(String rankKey) {
-        return config.getInt("ranks." + rankKey + ".weight", 99);
-    }
-
-    public String getDiscordUrl() {
-        return config.getString("discord.url", "discord.gg/deinserver");
-    }
-
-    // ── ACTIONBAR ────────────────────────────────────────────────────────────
+    // ── ACTIONBAR ──────────────────────────
 
     public List<String> getActionBarLines() {
-        return config.getStringList("actionbar.lines");
+        return actionbarCache;
     }
 
     public int getActionBarInterval() {
         return config.getInt("actionbar.interval", 4);
     }
 
-    // ── MOTD ─────────────────────────────────────────────────────────────────
+    // ── MESSAGES ───────────────────────────
+
+    public Component getMessage(String key, String... replacements) {
+        String msg = config.getString("messages." + key,
+                "<red>Message not found: " + key + "</red>");
+
+        for (int i = 0; i + 1 < replacements.length; i += 2) {
+            msg = msg.replace(replacements[i], replacements[i + 1]);
+        }
+
+        return mm.deserialize(msg);
+    }
+
+    // ── RANK SYSTEM (CLEAN ENUM STYLE) ────
+
+    public String getRankPrefix(Rank rank) {
+        return config.getString("ranks." + rank.name().toLowerCase() + ".prefix", "<gray>[?]</gray>");
+    }
+
+    public String getRankDisplay(Rank rank) {
+        return config.getString("ranks." + rank.name().toLowerCase() + ".display", rank.name());
+    }
+
+    public int getRankWeight(Rank rank) {
+        return config.getInt("ranks." + rank.name().toLowerCase() + ".weight", 99);
+    }
+
+    // ── MOTD ───────────────────────────────
 
     public boolean isMotdEnabled() {
         return config.getBoolean("motd.enabled", true);
     }
 
     public String getMotdLine1() {
-        return config.getString("motd.line1", "<gradient:#FF0000:#FFD700><bold>✦ Dein Server ✦</bold></gradient>");
+        return config.getString("motd.line1", "<gradient:#FF0000:#FFD700>✦ Server ✦</gradient>");
     }
 
     public String getMotdLine2() {
@@ -121,5 +106,11 @@ public class ConfigManager {
 
     public int getMotdFakeMax() {
         return config.getInt("motd.fake-max", 0);
+    }
+
+    // ── DISCORD ────────────────────────────
+
+    public String getDiscordUrl() {
+        return config.getString("discord.url", "discord.gg/deinserver");
     }
 }
