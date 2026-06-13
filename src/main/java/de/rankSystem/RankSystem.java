@@ -32,19 +32,20 @@ public class RankSystem extends JavaPlugin {
         rankManager = new RankManager(this);
         tabManager = new TabManager(this);
 
-        // Setup LuckPerms groups
         rankManager.setupLuckPermsGroups();
 
-        // Register listeners
         Bukkit.getPluginManager().registerEvents(new PlayerJoinListener(this), this);
         Bukkit.getPluginManager().registerEvents(new ChatListener(this), this);
 
-        // Register commands
         getCommand("rank").setExecutor(new RankCommand(this));
         getCommand("rank").setTabCompleter(new RankCommand(this));
 
-        // Update tab for all online players
         Bukkit.getOnlinePlayers().forEach(p -> tabManager.updatePlayer(p));
+
+        // Auto-Update Tab-Liste alle 2 Sekunden
+        Bukkit.getScheduler().runTaskTimer(this, () ->
+            Bukkit.getOnlinePlayers().forEach(p -> tabManager.updatePlayer(p)),
+        40L, 40L);
 
         getLogger().info("RankSystem erfolgreich gestartet!");
     }
