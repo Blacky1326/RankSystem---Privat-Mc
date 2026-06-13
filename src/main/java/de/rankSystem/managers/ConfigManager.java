@@ -90,10 +90,8 @@ public class ConfigManager {
     public int getRankWeight(String rankKey) {
         return config.getInt("ranks." + rankKey + ".weight", 99);
     }
-}
 
-    public String getDiscordUrl() {
-        return config.getString("discord.url", "discord.gg/deinserver");
+    // ── DISCORD ──────────────────────────────────────────────────────────────
 
     public String getDiscordUrl() {
         return config.getString("discord.url", "discord.gg/deinserver");
@@ -101,7 +99,7 @@ public class ConfigManager {
 
     // ── ACTIONBAR ────────────────────────────────────────────────────────────
 
-    public java.util.List<String> getActionBarLines() {
+    public List<String> getActionBarLines() {
         return config.getStringList("actionbar.lines");
     }
 
@@ -126,5 +124,4 @@ public class ConfigManager {
     public int getMotdFakeMax() {
         return config.getInt("motd.fake-max", 0);
     }
-
 }
