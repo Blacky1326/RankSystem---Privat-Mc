@@ -8,73 +8,86 @@ import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.scoreboard.*;
 
-import java.util.EnumMap;
+import java.util.HashMap;
 import java.util.Map;
 
 public class TabManager {
 
     private final RankSystem plugin;
     private final MiniMessage mm = MiniMessage.miniMessage();
-
-    private Scoreboard scoreboard;
-    private final Map<Rank, Team> rankTeams = new EnumMap<>(Rank.class);
+    private final Map<String, String> playerTeams = new HashMap<>();
 
     public TabManager(RankSystem plugin) {
         this.plugin = plugin;
-        this.scoreboard = Bukkit.getScoreboardManager().getMainScoreboard();
-
-        setupTeams();
     }
 
-    // 🔥 1. Teams einmal erstellen (WICHTIG!)
-    private void setupTeams() {
-        for (Rank rank : Rank.values()) {
-
-            String teamName = rank.name(); // stabiler Name
-
-            Team team = scoreboard.getTeam(teamName);
-            if (team == null) {
-                team = scoreboard.registerNewTeam(teamName);
-            }
-
-            team.setPrefix(toLegacy(rank.getTabPrefix()));
-            team.setOption(Team.Option.NAME_TAG_VISIBILITY, Team.OptionStatus.ALWAYS);
-
-            rankTeams.put(rank, team);
-        }
-    }
-
-    // 🔥 2. Player Update (nur verschieben, NICHT neu erstellen)
     public void updatePlayer(Player player) {
-
         Rank rank = plugin.getRankManager().getPlayerRank(player);
+        boolean vanished = plugin.getVanishManager() != null && plugin.getVanishManager().isVanished(player);
 
-        // Spieler aus allen Teams entfernen
-        for (Team team : rankTeams.values()) {
-            team.removeEntry(player.getName());
-        }
-
-        // Neues Team zuweisen
-        Team targetTeam = rankTeams.get(rank);
-        if (targetTeam != null) {
-            targetTeam.addEntry(player.getName());
-        }
-
-        // Tab Name setzen
-        Component tabName = buildTabName(player, rank);
-        player.playerListName(tabName);
-
+        setupScoreboardTeam(player, rank);
         updateTabHeaderFooter();
+
+        Component tabName = buildTabName(player, rank, vanished);
+        player.playerListName(tabName);
     }
 
-    // 🔥 3. Tab Name
-    private Component buildTabName(Player player, Rank rank) {
-        return rank.getTabPrefix().append(
-                mm.deserialize("<white> " + player.getName())
-        );
+    public void updateAllPlayers() {
+        Bukkit.getOnlinePlayers().forEach(this::updatePlayer);
     }
 
-    // 🔥 4. Header/Footer
+    private Component buildTabName(Player player, Rank rank, boolean vanished) {
+        String ping = getPingFormatted(player);
+
+        String nameTag = switch (rank) {
+            case OWNER     -> "<gradient:#FF6B6B:#FFD93D><bold>" + player.getName() + "</bold></gradient>";
+            case ADMIN     -> "<gradient:#FF8C00:#FFD700><bold>" + player.getName() + "</bold></gradient>";
+            case MODERATOR -> "<gradient:#00BFFF:#7B68EE>" + player.getName() + "</gradient>";
+            case SUPPORTER -> "<gradient:#00FF7F:#00CED1>" + player.getName() + "</gradient>";
+            case STREAMER  -> "<gradient:#DA70D6:#FF1493>" + player.getName() + "</gradient>";
+            case VIP       -> "<gradient:#FFD700:#FFA500>" + player.getName() + "</gradient>";
+            case MITGLIED  -> "<gray>" + player.getName() + "</gray>";
+        };
+
+        // 👻 Prefix für Staff die vanished Spieler sehen
+        String vanishPrefix = vanished ? "<gradient:#9400D3:#FF1493>👻 </gradient>" : "";
+
+        return mm.deserialize(vanishPrefix)
+                .append(rank.getTabPrefix())
+                .append(mm.deserialize(nameTag))
+                .append(mm.deserialize(" <dark_gray>| " + ping + "</dark_gray>"));
+    }
+
+    private String getPingFormatted(Player player) {
+        int ping = player.getPing();
+        String color;
+        if      (ping < 50)  color = "#00FF7F";
+        else if (ping < 100) color = "#7FFF00";
+        else if (ping < 150) color = "#FFD700";
+        else if (ping < 200) color = "#FFA500";
+        else                 color = "#FF4444";
+        return "<color:" + color + ">" + ping + "ms</color>";
+    }
+
+    private void setupScoreboardTeam(Player player, Rank rank) {
+        Scoreboard scoreboard = Bukkit.getScoreboardManager().getMainScoreboard();
+
+        String teamName = rank.getTeamSortPrefix() + player.getName();
+        if (teamName.length() > 16) teamName = teamName.substring(0, 16);
+
+        String oldTeamName = playerTeams.get(player.getName());
+        if (oldTeamName != null) {
+            Team oldTeam = scoreboard.getTeam(oldTeamName);
+            if (oldTeam != null) oldTeam.unregister();
+        }
+
+        Team team = scoreboard.getTeam(teamName);
+        if (team == null) team = scoreboard.registerNewTeam(teamName);
+        team.prefix(rank.getTabPrefix());
+        team.addPlayer(player);
+        playerTeams.put(player.getName(), teamName);
+    }
+
     public void updateTabHeaderFooter() {
         String header = plugin.getConfigManager().getTabHeader(Bukkit.getOnlinePlayers().size());
         String footer = plugin.getConfigManager().getTabFooter();
@@ -87,15 +100,12 @@ public class TabManager {
         }
     }
 
-    // 🔥 5. Cleanup
     public void removePlayer(Player player) {
-        for (Team team : rankTeams.values()) {
-            team.removeEntry(player.getName());
+        Scoreboard scoreboard = Bukkit.getScoreboardManager().getMainScoreboard();
+        String teamName = playerTeams.remove(player.getName());
+        if (teamName != null) {
+            Team team = scoreboard.getTeam(teamName);
+            if (team != null) team.unregister();
         }
-    }
-
-    // 🔥 MiniMessage → String (Scoreboard braucht legacy text)
-    private String toLegacy(Component component) {
-        return mm.serialize(component);
     }
 }

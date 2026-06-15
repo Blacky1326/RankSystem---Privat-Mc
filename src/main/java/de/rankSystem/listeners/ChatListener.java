@@ -5,8 +5,10 @@ import de.rankSystem.utils.Rank;
 import io.papermc.paper.event.player.AsyncChatEvent;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
+import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 
 public class ChatListener implements Listener {
@@ -18,27 +20,25 @@ public class ChatListener implements Listener {
         this.plugin = plugin;
     }
 
-    @EventHandler
+    @EventHandler(priority = EventPriority.HIGHEST)
     public void onChat(AsyncChatEvent event) {
-
         Player player = event.getPlayer();
         Rank rank = plugin.getRankManager().getPlayerRank(player);
 
-        Component message = event.message();
+        // Nachrichtentext extrahieren
+        String messageText = PlainTextComponentSerializer.plainText().serialize(event.message());
 
-        Component formatted = Component.empty()
-                .append(rank.getChatPrefix())
+        // Chat-Format: [RANG] Spielername: Nachricht
+        Component chatMessage = rank.getChatPrefix()
                 .append(Component.text(" "))
                 .append(getNameComponent(player, rank))
                 .append(mm.deserialize("<dark_gray>: </dark_gray>"))
-                .append(getMessageColor(rank))
-                .append(message);
+                .append(getChatMessageColor(rank, messageText));
 
-        event.renderer((source, sourceDisplayName, msg, viewer) -> formatted);
+        event.renderer((source, sourceDisplayName, message, viewer) -> chatMessage);
     }
 
     private Component getNameComponent(Player player, Rank rank) {
-
         String nameTag = switch (rank) {
             case OWNER -> "<gradient:#FF6B6B:#FFD93D><bold>" + player.getName() + "</bold></gradient>";
             case ADMIN -> "<gradient:#FF8C00:#FFD700><bold>" + player.getName() + "</bold></gradient>";
@@ -48,20 +48,17 @@ public class ChatListener implements Listener {
             case VIP -> "<gradient:#FFD700:#FFA500>" + player.getName() + "</gradient>";
             case MITGLIED -> "<gray>" + player.getName() + "</gray>";
         };
-
         return mm.deserialize(nameTag);
     }
 
-    private Component getMessageColor(Rank rank) {
-
+    private Component getChatMessageColor(Rank rank, String message) {
         String color = switch (rank) {
             case OWNER, ADMIN -> "<white>";
-            case MODERATOR, SUPPORTER -> "<gray>";
+            case MODERATOR, SUPPORTER -> "<#E0E0E0>";
             case STREAMER -> "<#E8C4FF>";
             case VIP -> "<#FFF5CC>";
             case MITGLIED -> "<gray>";
         };
-
-        return mm.deserialize(color);
+        return mm.deserialize(color + message);
     }
 }

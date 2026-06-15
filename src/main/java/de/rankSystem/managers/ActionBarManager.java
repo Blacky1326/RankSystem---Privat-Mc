@@ -29,23 +29,36 @@ public class ActionBarManager {
             List<String> lines = plugin.getConfigManager().getActionBarLines();
             if (lines.isEmpty()) return;
 
-            // Rotiere durch die Zeilen
             String line = lines.get(currentIndex % lines.size());
             currentIndex++;
 
             for (Player player : Bukkit.getOnlinePlayers()) {
-                Rank rank = plugin.getRankManager().getPlayerRank(player);
-                String formatted = line
-                        .replace("%rank%",    rank.getDisplayName())
-                        .replace("%prefix%",  getRankPrefixPlain(rank))
-                        .replace("%name%",    player.getName())
-                        .replace("%online%",  String.valueOf(Bukkit.getOnlinePlayers().size()))
-                        .replace("%ping%",    String.valueOf(player.getPing()));
-
-                Component actionBar = mm.deserialize(formatted);
-                player.sendActionBar(actionBar);
+                player.sendActionBar(buildActionBar(player, line));
             }
         }, 20L, intervalTicks);
+    }
+
+    /**
+     * Sendet die ActionBar sofort an einen einzelnen Spieler (z.B. nach Rang-Änderung).
+     */
+    public void sendImmediately(Player player) {
+        List<String> lines = plugin.getConfigManager().getActionBarLines();
+        if (lines.isEmpty()) return;
+
+        // Aktuelle Zeile nehmen (gleiche wie der laufende Zyklus)
+        String line = lines.get(currentIndex % lines.size());
+        player.sendActionBar(buildActionBar(player, line));
+    }
+
+    private Component buildActionBar(Player player, String line) {
+        Rank rank = plugin.getRankManager().getPlayerRank(player);
+        String formatted = line
+                .replace("%rank%",   rank.getDisplayName())
+                .replace("%prefix%", getRankPrefixPlain(rank))
+                .replace("%name%",   player.getName())
+                .replace("%online%", String.valueOf(Bukkit.getOnlinePlayers().size()))
+                .replace("%ping%",   String.valueOf(player.getPing()));
+        return mm.deserialize(formatted);
     }
 
     public void stop() {

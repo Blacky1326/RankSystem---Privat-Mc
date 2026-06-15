@@ -2,6 +2,9 @@
 # ║     RankSystem Config        ║
 # ╚══════════════════════════════╝
 
+# Config-Version – NICHT manuell ändern! Wird vom Plugin für Auto-Migration genutzt.
+config-version: 1
+
 # Tab-Liste Header & Footer
 tab:
   header:
@@ -16,11 +19,8 @@ chat:
 
 # Login-Screen Einstellungen
 login:
-  # Titel (groß im Bildschirm)
   title: "<gradient:#FF0000:#FFD700><bold>✦ Willkommen ✦</bold></gradient>"
-  # Untertitel (klein darunter)
   subtitle: "<gray>Schön dass du da bist, <white>%name%</white>!</gray>"
-  # Chat-Nachrichten beim Login (eine pro Zeile)
   chat:
     - ""
     - "<gradient:#FF0000:#FFD700>━━━━━━━━━━━━━━━━━━━━━━━━━━━</gradient>"
@@ -30,7 +30,6 @@ login:
     - "  <gray>» </gray>%discord%"
     - "<gradient:#FF0000:#FFD700>━━━━━━━━━━━━━━━━━━━━━━━━━━━</gradient>"
     - ""
-  # Animation: Wie lange der Titel sichtbar bleibt (in Sekunden)
   duration: 5
 
 # Join & Leave Nachrichten
@@ -83,23 +82,34 @@ ranks:
 discord:
   url: "discord.gg/deinserver"
 
-# ── Actionbar ────────────────────────────────────────────────────────────────
+# Actionbar
 actionbar:
-  # Wie lange jede Zeile angezeigt wird (in Sekunden)
   interval: 4
-  # Zeilen rotieren automatisch durch
-  # Platzhalter: %rank% %name% %online% %ping%
   lines:
     - "<gradient:#FF0000:#FFD700>✦ Dein Server</gradient> <dark_gray>|</dark_gray> <gray>Rang: <white>%rank%</white></gray>"
     - "<gradient:#00BFFF:#9400D3>✦ Dein Server</gradient> <dark_gray>|</dark_gray> <gray>Spieler online: <white>%online%</white></gray>"
     - "<gradient:#00FF7F:#00CED1>✦ Dein Server</gradient> <dark_gray>|</dark_gray> <gray>Ping: <white>%ping%ms</white></gray>"
     - "<gradient:#FF0000:#FFD700>✦ Dein Server</gradient> <dark_gray>|</dark_gray> <gradient:#00BFFF:#9400D3>discord.gg/deinserver</gradient>"
 
-# ── MOTD (Serverbeschreibung in der Serverliste) ─────────────────────────────
+# MOTD (Serverbeschreibung in der Serverliste)
 motd:
   enabled: true
-  # Platzhalter: %online% %max%
   line1: "<gradient:#FF0000:#FFD700><bold>✦ Dein Server ✦</bold></gradient>"
   line2: "<gray>➜ <white>%online%</white> Spieler online <dark_gray>| </dark_gray><gradient:#00BFFF:#9400D3>discord.gg/deinserver</gradient></gray>"
-  # Fake Max-Spieler Anzeige (0 = deaktiviert)
   fake-max: 100
+
+# Vanish
+vanish:
+  fake-quit: "%prefix% <gray>%name% hat den Server verlassen.</gray>"
+  fake-join: "%prefix% <gray>%name% ist dem Server beigetreten.</gray>"
+
+# Teleport
+teleport:
+  # Cooldown in Sekunden für normale Spieler nach /tpa
+  cooldown: 60
+  # Countdown in Sekunden bevor teleportiert wird (nach Annehmen)
+  countdown: 5
+  # Nach wie vielen Sekunden läuft eine offene Anfrage ab
+  request-timeout: 30
+  # Toleranz in Blöcken – wird die Distanz überschritten, wird Teleport abgebrochen
+  move-tolerance: 0.22

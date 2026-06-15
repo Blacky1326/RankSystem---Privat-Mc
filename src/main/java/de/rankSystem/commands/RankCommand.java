@@ -4,10 +4,16 @@ import de.rankSystem.RankSystem;
 import de.rankSystem.utils.Rank;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.Bukkit;
-import org.bukkit.command.*;
+import org.bukkit.command.Command;
+import org.bukkit.command.CommandExecutor;
+import org.bukkit.command.CommandSender;
+import org.bukkit.command.TabCompleter;
 import org.bukkit.entity.Player;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.UUID;
 
 public class RankCommand implements CommandExecutor, TabCompleter {
 
@@ -22,19 +28,17 @@ public class RankCommand implements CommandExecutor, TabCompleter {
     public boolean onCommand(CommandSender sender, Command cmd, String label, String[] args) {
 
         if (!sender.hasPermission("ranksystem.admin")) {
-            sender.sendMessage(mm.deserialize("<red>✗ Keine Rechte!</red>"));
+            sender.sendMessage(mm.deserialize("<red>✗ Du hast keine Berechtigung!</red>"));
             return true;
         }
 
-        if (args.length == 0) {
+        if (args.length < 1) {
             sendHelp(sender);
             return true;
         }
 
         switch (args[0].toLowerCase()) {
-
             case "set" -> {
-
                 if (args.length < 3) {
                     sender.sendMessage(mm.deserialize("<red>Nutzung: /rank set <Spieler> <Rang></red>"));
                     return true;
@@ -42,129 +46,139 @@ public class RankCommand implements CommandExecutor, TabCompleter {
 
                 Player target = Bukkit.getPlayer(args[1]);
                 if (target == null) {
-                    sender.sendMessage(mm.deserialize("<red>Spieler nicht online!</red>"));
+                    sender.sendMessage(mm.deserialize("<red>✗ Spieler <white>" + args[1] + "</white> nicht gefunden!</red>"));
                     return true;
                 }
 
                 Rank newRank;
                 try {
                     newRank = Rank.valueOf(args[2].toUpperCase());
-                } catch (Exception e) {
-                    sender.sendMessage(mm.deserialize("<red>Ungültiger Rang!</red>"));
+                } catch (IllegalArgumentException e) {
+                    sender.sendMessage(mm.deserialize("<red>✗ Ungültiger Rang! Verfügbar: <white>" + getRankList() + "</white></red>"));
                     return true;
                 }
 
+                if (newRank == Rank.OWNER && sender instanceof Player senderPlayer) {
+                    if (!plugin.getRankManager().getPlayerRank(senderPlayer).equals(Rank.OWNER)) {
+                        sender.sendMessage(mm.deserialize("<red>✗ Nur Owner können den Owner-Rang vergeben!</red>"));
+                        return true;
+                    }
+                }
+
                 Rank oldRank = plugin.getRankManager().getPlayerRank(target);
-                UUID uuid = target.getUniqueId();
+                UUID targetUUID = target.getUniqueId();
 
-                Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
+                plugin.getRankManager().setPlayerRank(targetUUID, newRank, oldRank)
+                        .thenRun(() -> {
+                            // 5 Ticks warten bis LuckPerms-Cache aktuell ist
+                            Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                                plugin.getLuckPerms().getUserManager().loadUser(targetUUID).thenAccept(u -> {
+                                    Bukkit.getScheduler().runTask(plugin, () -> {
+                                        if (!target.isOnline()) return;
 
-                    plugin.getRankManager().setPlayerRank(uuid, newRank, oldRank).thenRun(() -> {
+                                        // Tab aktualisieren
+                                        plugin.getTabManager().updatePlayer(target);
 
-                        Bukkit.getScheduler().runTask(plugin, () -> {
+                                        // ActionBar sofort mit neuem Rang aktualisieren
+                                        plugin.getActionBarManager().sendImmediately(target);
 
-                            plugin.getTabManager().updatePlayer(target);
+                                        sender.sendMessage(mm.deserialize(
+                                                "<green>✔ Rang von <white>" + target.getName() +
+                                                "</white> auf " + newRank.getChatPrefixMini() +
+                                                " <green>gesetzt!</green>"
+                                        ));
 
-                            sender.sendMessage(mm.deserialize(
-                                    "<green>✔ Rang von <white>" + target.getName() +
-                                            "</white> geändert zu " +
-                                            plugin.getConfigManager().getRankDisplay(newRank.name().toLowerCase()) +
-                                            "</green>"
-                            ));
-
-                            target.sendMessage(mm.deserialize(
-                                    "<gray>Dein Rang wurde geändert zu </gray>" +
-                                            "<gradient:#00FF7F:#00CED1><bold>" +
-                                            plugin.getConfigManager().getRankDisplay(newRank.name().toLowerCase()) +
-                                            "</bold></gradient>"
-                            ));
+                                        target.sendMessage(mm.deserialize(
+                                                "<gray>Dein Rang wurde auf </gray>" +
+                                                "<gradient:#00FF7F:#00CED1><bold>" + newRank.getDisplayName() + "</bold></gradient>" +
+                                                "<gray> gesetzt!</gray>"
+                                        ));
+                                    });
+                                });
+                            }, 5L);
                         });
-                    });
-                });
             }
 
             case "info" -> {
-                Player target = (args.length >= 2)
-                        ? Bukkit.getPlayer(args[1])
-                        : (sender instanceof Player p ? p : null);
-
-                if (target == null) {
-                    sender.sendMessage(mm.deserialize("<red>Spieler nicht gefunden!</red>"));
+                Player target;
+                if (args.length >= 2) {
+                    target = Bukkit.getPlayer(args[1]);
+                    if (target == null) {
+                        sender.sendMessage(mm.deserialize("<red>✗ Spieler nicht gefunden!</red>"));
+                        return true;
+                    }
+                } else if (sender instanceof Player p) {
+                    target = p;
+                } else {
+                    sender.sendMessage(mm.deserialize("<red>Bitte gib einen Spielernamen an!</red>"));
                     return true;
                 }
 
                 Rank rank = plugin.getRankManager().getPlayerRank(target);
-
                 sender.sendMessage(mm.deserialize(
-                        "<dark_gray>┌──── Info ────┐</dark_gray>\n" +
-                                "<dark_gray>│</dark_gray> <white>" + target.getName() + "</white>\n" +
-                                "<dark_gray>│</dark_gray> " + serialize(rank.getChatPrefix()) + "\n" +
-                                "<dark_gray>└─────────────┘</dark_gray>"
+                        "<dark_gray>┌──────────────────────────┐</dark_gray>\n" +
+                        "<dark_gray>│</dark_gray> <gray>Spieler: <white>" + target.getName() + "</white></gray>\n" +
+                        "<dark_gray>│</dark_gray> <gray>Rang: </gray>" + rank.getChatPrefixMini() + "\n" +
+                        "<dark_gray>└──────────────────────────┘</dark_gray>"
                 ));
-            }
-
-            case "list" -> {
-                StringBuilder sb = new StringBuilder();
-                sb.append("<dark_gray>┌──── Ränge ────┐</dark_gray>\n");
-
-                for (Rank rank : Rank.values()) {
-                    sb.append("<dark_gray>│</dark_gray> ")
-                            .append(serialize(rank.getChatPrefix()))
-                            .append("\n");
-                }
-
-                sb.append("<dark_gray>└──────────────┘</dark_gray>");
-                sender.sendMessage(mm.deserialize(sb.toString()));
             }
 
             case "reload" -> {
                 plugin.getConfigManager().reload();
                 plugin.getActionBarManager().restart();
-                sender.sendMessage(mm.deserialize("<green>Config neu geladen!</green>"));
+                sender.sendMessage(mm.deserialize("<green>✔ Config erfolgreich neu geladen!</green>"));
+            }
+
+            case "list" -> {
+                sender.sendMessage(mm.deserialize("<dark_gray>┌──── Alle Ränge ────┐</dark_gray>"));
+                for (Rank rank : Rank.values()) {
+                    sender.sendMessage(mm.deserialize(
+                        "<dark_gray>│</dark_gray> " + rank.getChatPrefixMini()
+                        + " <gray>(" + rank.getLuckPermsGroup() + ")</gray>"
+                    ));
+                }
+                sender.sendMessage(mm.deserialize("<dark_gray>└───────────────────┘</dark_gray>"));
             }
 
             default -> sendHelp(sender);
         }
-
         return true;
-    }
-
-    private String serialize(net.kyori.adventure.text.Component component) {
-        return net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer
-                .legacySection().serialize(component);
     }
 
     private void sendHelp(CommandSender sender) {
         sender.sendMessage(mm.deserialize(
-                "<dark_gray>/rank set <Spieler> <Rang>\n" +
-                        "/rank info\n" +
-                        "/rank list\n" +
-                        "/rank reload</dark_gray>"
+                "<dark_gray>┌──── RankSystem Hilfe ────┐</dark_gray>\n" +
+                "<dark_gray>│</dark_gray> <gradient:#00BFFF:#9400D3>/rank set <Spieler> <Rang></gradient>\n" +
+                "<dark_gray>│</dark_gray> <gradient:#00BFFF:#9400D3>/rank info [Spieler]</gradient>\n" +
+                "<dark_gray>│</dark_gray> <gradient:#00BFFF:#9400D3>/rank list</gradient>\n" +
+                "<dark_gray>└─────────────────────────┘</dark_gray>"
         ));
+    }
+
+    private String getRankList() {
+        StringBuilder sb = new StringBuilder();
+        for (Rank rank : Rank.values()) {
+            if (sb.length() > 0) sb.append(", ");
+            sb.append(rank.name());
+        }
+        return sb.toString();
     }
 
     @Override
     public List<String> onTabComplete(CommandSender sender, Command cmd, String alias, String[] args) {
+        if (!sender.hasPermission("ranksystem.admin")) return new ArrayList<>();
 
-        if (!sender.hasPermission("ranksystem.admin")) return Collections.emptyList();
-
-        if (args.length == 1) {
-            return Arrays.asList("set", "info", "list", "reload");
+        if (args.length == 1) return Arrays.asList("set", "info", "list", "reload");
+        if (args.length == 2 && (args[0].equalsIgnoreCase("set") || args[0].equalsIgnoreCase("info"))) {
+            List<String> players = new ArrayList<>();
+            Bukkit.getOnlinePlayers().forEach(p -> players.add(p.getName()));
+            return players;
         }
-
-        if (args.length == 2) {
-            return Bukkit.getOnlinePlayers()
-                    .stream()
-                    .map(Player::getName)
-                    .toList();
-        }
-
         if (args.length == 3 && args[0].equalsIgnoreCase("set")) {
-            return Arrays.stream(Rank.values())
-                    .map(r -> r.name().toLowerCase())
-                    .toList();
+            List<String> ranks = new ArrayList<>();
+            for (Rank rank : Rank.values()) ranks.add(rank.name().toLowerCase());
+            return ranks;
         }
-
-        return Collections.emptyList();
+        return new ArrayList<>();
     }
 }

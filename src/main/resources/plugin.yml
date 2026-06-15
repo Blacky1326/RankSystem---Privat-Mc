@@ -3,7 +3,7 @@ version: 1.0.0
 main: de.rankSystem.RankSystem
 api-version: '1.21'
 author: YourName
-description: Neon Rank System mit LuckPerms, Tab-Liste, Chat-Prefix
+description: Neon Rank System mit LuckPerms, Tab-Liste, Chat-Prefix, Moderation & Vanish
 
 depend:
   - LuckPerms
@@ -11,16 +11,87 @@ depend:
 commands:
   rank:
     description: Rang-Verwaltung
-    usage: /rank <set|info|list> [Spieler] [Rang]
+    usage: /rank <set|info|list|reload> [Spieler] [Rang]
     permission: ranksystem.admin
 
+  warn:
+    description: Spieler verwarnen
+    usage: /warn <Spieler> <Grund>
+    permission: ranksystem.mod
+
+  warnings:
+    description: Verwarnungen eines Spielers anzeigen
+    usage: /warnings [Spieler]
+    permission: ranksystem.mod
+
+  mute:
+    description: Spieler muten
+    usage: /mute <Spieler> <Dauer> [Grund]
+    permission: ranksystem.mod
+
+  unmute:
+    description: Spieler entmuten
+    usage: /unmute <Spieler>
+    permission: ranksystem.mod
+
+  tempban:
+    description: Spieler temporär bannen
+    usage: /tempban <Spieler> <Dauer> [Grund]
+    permission: ranksystem.admin
+
+  unban:
+    description: Spieler entbannen
+    usage: /unban <Spieler>
+    permission: ranksystem.admin
+
+  sc:
+    description: Staff-Chat
+    usage: /sc <Nachricht> | /sc toggle
+    permission: ranksystem.mod
+    aliases: [staffchat]
+
+  staffchat:
+    description: Staff-Chat (Alias)
+    usage: /staffchat <Nachricht>
+    permission: ranksystem.mod
+
+  vanish:
+    description: Im Vanish-Modus verschwinden (Mod+)
+    usage: /vanish [Spieler]
+    permission: ranksystem.vanish
+
+  tp:
+    description: Sofort zu einem Spieler teleportieren (Mod+)
+    usage: /tp <Spieler>
+    permission: ranksystem.mod
+
+  tpa:
+    description: Teleport-Anfrage an einen Spieler senden
+    usage: /tpa <Spieler>
+
+  tpaccept:
+    description: Teleport-Anfrage annehmen
+    usage: /tpaccept
+
+  tpdeny:
+    description: Teleport-Anfrage ablehnen
+    usage: /tpdeny
+
 permissions:
-  # Admin-Permissions
   ranksystem.admin:
-    description: Zugriff auf /rank Befehle
+    description: Zugriff auf /rank, /tempban Befehle
     default: op
 
-  # Rang-Permissions (von LuckPerms automatisch vergeben)
+  ranksystem.mod:
+    description: Moderator-Funktionen (warn, mute, sc)
+    default: false
+    children:
+      ranksystem.vanish: true
+
+  ranksystem.vanish:
+    description: Vanish-Befehl nutzen (Mod+)
+    default: false
+
   ranksystem.rank.owner:
     description: Owner-Rang
     default: false
@@ -43,10 +114,6 @@ permissions:
     description: Mitglied-Rang
     default: true
 
-  # Feature-Permissions (für andere Plugins nutzbar)
-  ranksystem.mod:
-    description: Moderator-Funktionen
-    default: false
   ranksystem.support:
     description: Supporter-Funktionen
     default: false
